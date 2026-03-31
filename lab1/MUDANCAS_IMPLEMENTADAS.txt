@@ -1,0 +1,112 @@
+═══════════════════════════════════════════════════════════════════════
+  DISCOVERY - IMPLEMENTAÇÃO COMPLETA COM TIMEOUT E COMENTÁRIOS
+═══════════════════════════════════════════════════════════════════════
+
+📋 REQUISITOS DO PDF (Página 47):
+   "Complete the code to record information about running services.
+    Suggestion: store the time of received announcement to know which 
+    servers are currently reachable."
+
+═══════════════════════════════════════════════════════════════════════
+✅ IMPLEMENTAÇÕES REALIZADAS
+═══════════════════════════════════════════════════════════════════════
+
+1. DISCOVERY.JAVA - Mecanismo de Timeout e Expiração
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   🔹 NOVA CONSTANTE:
+      • SERVICE_EXPIRATION_TIMEOUT = 5000ms
+      → Serviços que não anunciam há 5 segundos são removidos
+
+   🔹 MUDANÇA NA ESTRUTURA DE DADOS:
+      ANTES: Map<String, Set<URI>>
+      AGORA: Map<String, Map<URI, Long>>
+      → Cada URI agora tem seu timestamp de último anúncio
+
+   🔹 NOVO MÉTODO: cleanupExpiredServices()
+      → Thread que executa a cada 5 segundos
+      → Remove URIs cujo timestamp > SERVICE_EXPIRATION_TIMEOUT
+      → Remove serviços sem URIs válidos
+
+   🔹 MODIFICAÇÃO: Recepção de Anúncios
+      → Ao receber anúncio: serviceRegistry.put(uri, currentTime)
+      → Atualiza timestamp a cada novo anúncio recebido
+
+   🔹 MODIFICAÇÃO: knownUrisOf()
+      → Filtra apenas URIs não expirados antes de retornar
+      → Usa stream().filter() para validar timestamps
+
+═══════════════════════════════════════════════════════════════════════
+
+2. TCPSERVER.JAVA - Auto-Anúncio via Discovery
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   🔹 ANTES (TODO): 
+      //TODO: Use Discovery to announce...
+
+   🔹 AGORA:
+      Discovery discovery = new Discovery(DISCOVERY_ADDR, "TcpServer", "tcp://IP:9000");
+      discovery.start();
+      → Servidor se anuncia automaticamente a cada 1 segundo
+
+═══════════════════════════════════════════════════════════════════════
+
+3. TCPCLIENT.JAVA - Descoberta Automática
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   🔹 ANTES (TODO):
+      Scanner scan = new Scanner(System.in);
+      String serverAddr = scan.nextLine();  // input manual!
+
+   🔹 AGORA:
+      Discovery discovery = new Discovery(DISCOVERY_ADDR);
+      discovery.start();
+      URI[] servers = discovery.knownUrisOf("TcpServer", 1);
+      → Cliente descobre servidores automaticamente via multicast
+
+═══════════════════════════════════════════════════════════════════════
+
+📝 COMENTÁRIOS ADICIONADOS NO CÓDIGO
+═══════════════════════════════════════════════════════════════════════
+
+   ✓ "FEITO DE INICIO" - Código que já existia originalmente
+   ✓ "MUDEI ISTO" - Código que foi modificado/adicionado
+
+   Todos os comentários estão em PORTUGUÊS e explicam:
+   • O que cada bloco faz
+   • Por que foi feito (referência ao PDF quando aplicável)
+   • Estruturas de dados usadas
+
+═══════════════════════════════════════════════════════════════════════
+
+🎯 FUNCIONAMENTO DO TIMEOUT
+═══════════════════════════════════════════════════════════════════════
+
+   CENÁRIO 1: Servidor Online
+   ┌─────────────────────────────────────────────┐
+   │ t=0s  : Servidor anuncia → Timestamp = 0    │
+   │ t=1s  : Servidor anuncia → Timestamp = 1000 │
+   │ t=2s  : Servidor anuncia → Timestamp = 2000 │
+   │ t=3s  : Cliente consulta → URI VÁLIDO ✓     │
+   └─────────────────────────────────────────────┘
+
+   CENÁRIO 2: Servidor Offline
+   ┌─────────────────────────────────────────────┐
+   │ t=0s  : Servidor anuncia → Timestamp = 0    │
+   │ t=1s  : Servidor anuncia → Timestamp = 1000 │
+   │ t=2s  : Servidor CRASH (sem mais anúncios)  │
+   │ t=7s  : Cleanup thread → URI REMOVIDO ✗     │
+   │ t=8s  : Cliente consulta → Não encontra     │
+   └─────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════
+
+✅ COMPILAÇÃO E TESTES
+═══════════════════════════════════════════════════════════════════════
+
+   mvn clean compile  → SUCCESS ✓
+   mvn package        → SUCCESS ✓
+   
+   JAR gerado: target/sd2526-lab1-1.0.jar
+
+═══════════════════════════════════════════════════════════════════════
