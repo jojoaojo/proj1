@@ -1,0 +1,516 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                                                                               ║
+║              LAB1 - SERVICE DISCOVERY COM MULTICAST                           ║
+║                   GUIA COMPLETO DE IMPLEMENTAÇÃO E TESTES                     ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+📋 ÍNDICE
+═══════════════════════════════════════════════════════════════════════════════
+
+1. O QUE FOI IMPLEMENTADO
+2. ESTRUTURA DO PROJETO
+3. COMPILAÇÃO DO PROJETO
+4. CRIAÇÃO DA IMAGEM DOCKER
+5. TESTES COM DOCKER
+   5.1. Exercício 1: Múltiplos Containers com Discovery
+   5.2. Exercício 2: TcpServer + TcpClient
+6. TESTES SEM DOCKER (OPCIONAL)
+7. COMANDOS ÚTEIS
+8. TROUBLESHOOTING
+
+═══════════════════════════════════════════════════════════════════════════════
+1️⃣  O QUE FOI IMPLEMENTADO
+═══════════════════════════════════════════════════════════════════════════════
+
+📁 Discovery.java
+───────────────────────────────────────────────────────────────────────────────
+
+✅ Estrutura de Dados com Timestamps:
+   • Map<String, Map<URI, Long>> serviceRegistry
+   • Guarda cada URI descoberto com timestamp de último anúncio
+   • Thread-safe usando ConcurrentHashMap
+
+✅ Gravação de Anúncios:
+   • Quando recebe anúncio via multicast:
+     - Parse "serviceName\tserviceURI"
+     - Grava: serviceRegistry.put(uri, System.currentTimeMillis())
+     - Log: "Registered service: TcpServer -> tcp://... (timestamp: ...)"
+   
+✅ Método knownUrisOf() implementado:
+   • Bloqueia até descobrir minReplies serviços
+   • Timeout de 5 segundos (DISCOVERY_RETRY_TIMEOUT)
+   • Retorna TODOS os URIs encontrados (não filtra por timestamp)
+   • Responsabilidade do programador verificar se timestamps são recentes
+
+✅ Thread de Anúncio Periódico:
+   • Envia anúncio a cada 1 segundo (DISCOVERY_ANNOUNCE_PERIOD)
+   • Formato: "serviceName\tserviceURI"
+   • Para grupo multicast: 226.226.226.226:2266
+
+✅ Thread de Recepção:
+   • Escuta continuamente no grupo multicast
+   • Processa anúncios recebidos
+   • Atualiza timestamps automaticamente
+
+📁 TcpServer.java
+───────────────────────────────────────────────────────────────────────────────
+
+✅ Integração com Discovery:
+   • Auto-anuncia como "TcpServer"
+   • URI no formato: tcp://IP:9000
+   • Broadcasting automático via Discovery
+   
+✅ Funcionalidade TCP:
+   • Aceita conexões na porta 9000
+   • Recebe mensagens dos clientes
+   • Imprime mensagens recebidas
+
+📁 TcpClient.java
+───────────────────────────────────────────────────────────────────────────────
+
+✅ Integração com Discovery:
+   • Descobre servidores TcpServer automaticamente
+   • Aguarda até encontrar pelo menos 1 servidor
+   • Conecta ao primeiro servidor descoberto
+   
+✅ Funcionalidade TCP:
+   • Envia linhas de texto ao servidor
+   • Termina quando digita: !quit
+
+═══════════════════════════════════════════════════════════════════════════════
+2️⃣  ESTRUTURA DO PROJETO
+═══════════════════════════════════════════════════════════════════════════════
+
+lab1/
+├── pom.xml                          # Configuração Maven
+├── Dockerfile                       # Imagem Docker
+├── exec.sh                          # Script para executar cliente/servidor
+├── src/
+│   └── sd/
+│       └── lab1/
+│           ├── Discovery.java       # Sistema de descoberta (IMPLEMENTADO)
+│           ├── TcpServer.java       # Servidor TCP (INTEGRADO)
+│           └── TcpClient.java       # Cliente TCP (INTEGRADO)
+└── target/
+    └── sd2526-lab1-1.0.jar         # JAR compilado (após mvn package)
+
+═══════════════════════════════════════════════════════════════════════════════
+3️⃣  COMPILAÇÃO DO PROJETO
+═══════════════════════════════════════════════════════════════════════════════
+
+PASSO 1: Limpar e compilar
+───────────────────────────────────────────────────────────────────────────────
+mvn clean compile
+
+Resultado esperado:
+[INFO] BUILD SUCCESS
+
+PASSO 2: Criar JAR com dependências
+───────────────────────────────────────────────────────────────────────────────
+mvn package
+
+Ou fazer tudo de uma vez:
+───────────────────────────────────────────────────────────────────────────────
+mvn clean compile package
+
+Resultado esperado:
+• Arquivo criado: target/sd2526-lab1-1.0.jar
+
+═══════════════════════════════════════════════════════════════════════════════
+4️⃣  CRIAÇÃO DA IMAGEM DOCKER
+═══════════════════════════════════════════════════════════════════════════════
+
+IMPORTANTE: Editar pom.xml primeiro!
+───────────────────────────────────────────────────────────────────────────────
+Abrir pom.xml e mudar a propriedade <authors>:
+
+<properties>
+  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  <authors>xxxxx-yyyyy</authors>  ← MUDAR PARA SEUS NÚMEROS
+</properties>
+
+Exemplo: <authors>12345-67890</authors>
+
+OPÇÃO A: Criar imagem com Maven (RECOMENDADO)
+───────────────────────────────────────────────────────────────────────────────
+mvn docker:build
+
+Ou tudo de uma vez:
+───────────────────────────────────────────────────────────────────────────────
+mvn clean compile assembly:single docker:build
+
+OPÇÃO B: Criar imagem com Docker CLI
+───────────────────────────────────────────────────────────────────────────────
+docker build -t sd2526-lab1-xxxxx-yyyyy .
+
+Verificar se imagem foi criada:
+───────────────────────────────────────────────────────────────────────────────
+docker images | grep sd2526-lab1
+
+Resultado esperado:
+sd2526-lab1-xxxxx-yyyyy    latest    abc123def456    2 minutes ago    500MB
+
+═══════════════════════════════════════════════════════════════════════════════
+5️⃣  TESTES COM DOCKER
+═══════════════════════════════════════════════════════════════════════════════
+
+CRIAR REDE BRIDGE (Necessário para hostname resolution)
+───────────────────────────────────────────────────────────────────────────────
+docker network create -d bridge sdnet
+
+Verificar:
+───────────────────────────────────────────────────────────────────────────────
+docker network ls
+
+═══════════════════════════════════════════════════════════════════════════════
+5.1 EXERCÍCIO 1: Múltiplos Containers com Discovery
+═══════════════════════════════════════════════════════════════════════════════
+
+OBJETIVO: Verificar que containers recebem anúncios uns dos outros
+
+TERMINAL 1: Container Discovery #1
+───────────────────────────────────────────────────────────────────────────────
+docker run --rm -h discovery1 --name disc1 --network sdnet sd2526-lab1-xxxxx-yyyyy
+
+O que acontece:
+• Container inicia classe Discovery.main()
+• Anuncia serviço "test" com seu IP
+• Recebe anúncios de outros containers
+
+Output esperado:
+INFO: Starting Discovery announcements on: /226.226.226.226:2266 for: test -> http://172.18.0.2
+FROM discovery1 (172.18.0.2) : test	http://172.18.0.2
+
+TERMINAL 2: Container Discovery #2
+───────────────────────────────────────────────────────────────────────────────
+docker run --rm -h discovery2 --name disc2 --network sdnet sd2526-lab1-xxxxx-yyyyy
+
+Output esperado:
+INFO: Starting Discovery announcements on: /226.226.226.226:2266 for: test -> http://172.18.0.3
+FROM discovery1 (172.18.0.2) : test	http://172.18.0.2  ← RECEBE do container 1
+FROM discovery2 (172.18.0.3) : test	http://172.18.0.3  ← Próprio anúncio
+
+TERMINAL 3: Container Discovery #3
+───────────────────────────────────────────────────────────────────────────────
+docker run --rm -h discovery3 --name disc3 --network sdnet sd2526-lab1-xxxxx-yyyyy
+
+Output esperado:
+FROM discovery1 (172.18.0.2) : test	http://172.18.0.2  ← RECEBE do container 1
+FROM discovery2 (172.18.0.3) : test	http://172.18.0.3  ← RECEBE do container 2
+FROM discovery3 (172.18.0.4) : test	http://172.18.0.4  ← Próprio anúncio
+
+✅ SUCESSO SE:
+   • Cada container vê anúncios dos outros containers
+   • Mensagens aparecem a cada ~1 segundo
+   • Logs mostram "Registered service: ..." com timestamps
+
+PARAR TESTES:
+───────────────────────────────────────────────────────────────────────────────
+Ctrl+C em cada terminal
+
+═══════════════════════════════════════════════════════════════════════════════
+5.2 EXERCÍCIO 2: TcpServer + TcpClient
+═══════════════════════════════════════════════════════════════════════════════
+
+CENÁRIO: 1 Servidor + 1 Cliente (descoberta automática)
+
+TERMINAL 1: Servidor TCP
+───────────────────────────────────────────────────────────────────────────────
+docker run -it --rm -h servidor --name srv --network sdnet \
+    sd2526-lab1-xxxxx-yyyyy \
+    java -cp /home/sd/sd.jar sd.lab1.TcpServer
+
+Output esperado:
+INFO: Starting Discovery announcements on: /226.226.226.226:2266 for: TcpServer -> tcp://172.18.0.2:9000
+INFO: Service announced as: tcp://172.18.0.2:9000
+INFO: My IP address is: 172.18.0.2
+INFO: Accepting connections at: /0.0.0.0:9000
+FROM servidor (172.18.0.2) : TcpServer	tcp://172.18.0.2:9000
+
+TERMINAL 2: Cliente TCP
+───────────────────────────────────────────────────────────────────────────────
+docker run -it --rm -h cliente --name cli --network sdnet \
+    sd2526-lab1-xxxxx-yyyyy \
+    java -cp /home/sd/sd.jar sd.lab1.TcpClient
+
+Output esperado:
+Discovering TcpServer instances...
+INFO: Starting Discovery announcements on: /226.226.226.226:2266 for: null -> null
+FROM servidor (172.18.0.2) : TcpServer	tcp://172.18.0.2:9000
+INFO: Registered service: TcpServer -> tcp://172.18.0.2:9000 (timestamp: 1711989234567)
+INFO: Searching for 'TcpServer' with minimum 1 replicas...
+INFO: Found 1 instances of service 'TcpServer'
+Connecting to discovered server: tcp://172.18.0.2:9000
+
+Agora pode digitar mensagens:
+
+Cliente (digite):
+───────────────────────────────────────────────────────────────────────────────
+Olá servidor!
+Esta é uma mensagem de teste
+!quit
+
+Servidor (verá):
+───────────────────────────────────────────────────────────────────────────────
+Accepted connection from client at: /172.18.0.3:xxxxx
+Olá servidor!
+Esta é uma mensagem de teste
+!quit
+INFO: Connection closed.
+
+✅ SUCESSO SE:
+   • Cliente descobre servidor automaticamente (sem input manual)
+   • Mensagens enviadas pelo cliente aparecem no servidor
+   • Conexão fecha quando cliente envia "!quit"
+
+═══════════════════════════════════════════════════════════════════════════════
+CENÁRIO 2: Múltiplos Servidores + 1 Cliente
+═══════════════════════════════════════════════════════════════════════════════
+
+TERMINAL 1: Servidor #1
+───────────────────────────────────────────────────────────────────────────────
+docker run -it --rm -h srv1 --name srv1 --network sdnet \
+    sd2526-lab1-xxxxx-yyyyy \
+    java -cp /home/sd/sd.jar sd.lab1.TcpServer
+
+TERMINAL 2: Servidor #2
+───────────────────────────────────────────────────────────────────────────────
+docker run -it --rm -h srv2 --name srv2 --network sdnet \
+    sd2526-lab1-xxxxx-yyyyy \
+    java -cp /home/sd/sd.jar sd.lab1.TcpServer
+
+TERMINAL 3: Cliente (descobre ambos)
+───────────────────────────────────────────────────────────────────────────────
+docker run -it --rm -h cli --name cli --network sdnet \
+    sd2526-lab1-xxxxx-yyyyy \
+    java -cp /home/sd/sd.jar sd.lab1.TcpClient
+
+Output do Cliente:
+───────────────────────────────────────────────────────────────────────────────
+Discovering TcpServer instances...
+FROM srv1 (172.18.0.2) : TcpServer	tcp://172.18.0.2:9000
+FROM srv2 (172.18.0.3) : TcpServer	tcp://172.18.0.3:9000
+INFO: Registered service: TcpServer -> tcp://172.18.0.2:9000 (timestamp: ...)
+INFO: Registered service: TcpServer -> tcp://172.18.0.3:9000 (timestamp: ...)
+INFO: Found 2 instances of service 'TcpServer'
+Connecting to discovered server: tcp://172.18.0.2:9000  ← Conecta ao primeiro
+
+NOTA: Cliente conecta ao PRIMEIRO servidor descoberto.
+      Para conectar a servidor específico, precisaria modificar código.
+
+═══════════════════════════════════════════════════════════════════════════════
+6️⃣  TESTES SEM DOCKER (OPCIONAL - LOCAL)
+═══════════════════════════════════════════════════════════════════════════════
+
+Se quiser testar sem Docker (na própria máquina):
+
+TERMINAL 1: Servidor
+───────────────────────────────────────────────────────────────────────────────
+java -cp target/sd2526-lab1-1.0.jar sd.lab1.TcpServer
+
+TERMINAL 2: Cliente
+───────────────────────────────────────────────────────────────────────────────
+java -cp target/sd2526-lab1-1.0.jar sd.lab1.TcpClient
+
+TERMINAL 3: Teste Discovery simples
+───────────────────────────────────────────────────────────────────────────────
+java -cp target/sd2526-lab1-1.0.jar sd.lab1.Discovery
+
+═══════════════════════════════════════════════════════════════════════════════
+7️⃣  COMANDOS ÚTEIS DO DOCKER
+═══════════════════════════════════════════════════════════════════════════════
+
+Ver containers em execução:
+───────────────────────────────────────────────────────────────────────────────
+docker ps
+
+Ver todos containers (incluindo parados):
+───────────────────────────────────────────────────────────────────────────────
+docker ps -a
+
+Ver logs de um container (se rodou com -d):
+───────────────────────────────────────────────────────────────────────────────
+docker logs -f <container-name>
+
+Exemplo:
+docker logs -f srv1
+
+Executar comando em container em execução:
+───────────────────────────────────────────────────────────────────────────────
+docker exec -it <container-name> /bin/bash
+
+Exemplo:
+docker exec -it srv1 /bin/bash
+
+Parar container:
+───────────────────────────────────────────────────────────────────────────────
+docker kill <container-name>
+
+Exemplo:
+docker kill srv1
+
+Parar TODOS os containers:
+───────────────────────────────────────────────────────────────────────────────
+docker kill $(docker ps -q)
+
+Remover container parado:
+───────────────────────────────────────────────────────────────────────────────
+docker rm <container-name>
+
+Remover TODOS containers parados:
+───────────────────────────────────────────────────────────────────────────────
+docker system prune
+
+Remover rede:
+───────────────────────────────────────────────────────────────────────────────
+docker network rm sdnet
+
+Ver detalhes da rede:
+───────────────────────────────────────────────────────────────────────────────
+docker network inspect sdnet
+
+═══════════════════════════════════════════════════════════════════════════════
+8️⃣  TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+PROBLEMA: "Cannot connect to the Docker daemon"
+───────────────────────────────────────────────────────────────────────────────
+SOLUÇÃO:
+• Windows: Iniciar Docker Desktop
+• Linux: sudo systemctl start docker
+
+PROBLEMA: Cliente não descobre servidor
+───────────────────────────────────────────────────────────────────────────────
+VERIFICAR:
+1. Ambos estão na mesma rede? (--network sdnet)
+2. Servidor está realmente rodando? (docker ps)
+3. Multicast está funcionando? (ver logs "FROM ...")
+
+SOLUÇÃO:
+• Garantir que ambos usam --network sdnet
+• Reiniciar containers
+• Verificar firewall (pode bloquear multicast)
+
+PROBLEMA: "Address already in use" (porta 9000)
+───────────────────────────────────────────────────────────────────────────────
+CAUSA: Já há um servidor rodando na porta 9000
+
+SOLUÇÃO:
+docker ps  # Ver containers rodando
+docker kill <container-name>  # Parar container
+
+PROBLEMA: Cliente recebe servidor mas não consegue conectar
+───────────────────────────────────────────────────────────────────────────────
+VERIFICAR:
+• Timestamp do servidor (pode ser antigo se servidor caiu)
+• Servidor realmente está escutando na porta 9000
+
+SOLUÇÃO:
+• Reiniciar servidor
+• Verificar logs: docker logs <servidor-name>
+
+PROBLEMA: Imagem Docker não é criada
+───────────────────────────────────────────────────────────────────────────────
+VERIFICAR:
+• JAR foi criado? (ls target/*.jar)
+• Dockerfile existe?
+
+SOLUÇÃO:
+mvn clean package  # Criar JAR primeiro
+docker build -t sd2526-lab1-xxxxx-yyyyy .
+
+PROBLEMA: Container para imediatamente após iniciar
+───────────────────────────────────────────────────────────────────────────────
+VERIFICAR LOGS:
+docker logs <container-name>
+
+CAUSA COMUM:
+• Erro no código Java
+• JAR não foi copiado corretamente para imagem
+
+═══════════════════════════════════════════════════════════════════════════════
+📊 CHECKLIST DE SUCESSO
+═══════════════════════════════════════════════════════════════════════════════
+
+Exercício 1 - Discovery:
+───────────────────────────────────────────────────────────────────────────────
+☐ Compilação: mvn clean compile package → SUCCESS
+☐ Imagem Docker criada: docker images | grep sd2526-lab1
+☐ Rede criada: docker network ls | grep sdnet
+☐ Container 1 rodando e anunciando
+☐ Container 2 rodando e RECEBENDO anúncios do Container 1
+☐ Container 3 rodando e RECEBENDO anúncios dos outros
+☐ Logs mostram timestamps: "Registered service: ... (timestamp: ...)"
+
+Exercício 2 - TcpServer + TcpClient:
+───────────────────────────────────────────────────────────────────────────────
+☐ Servidor rodando e anunciando "TcpServer"
+☐ Cliente rodando e descobrindo servidor automaticamente
+☐ Cliente NÃO pede input manual de endereço
+☐ Mensagem "Connecting to discovered server: tcp://..."
+☐ Mensagens enviadas pelo cliente aparecem no servidor
+☐ Comando !quit fecha conexão corretamente
+
+Exercício 3 - Múltiplos Servidores:
+───────────────────────────────────────────────────────────────────────────────
+☐ 2+ servidores rodando simultaneamente
+☐ Cliente descobre TODOS os servidores
+☐ Logs mostram múltiplos registros com timestamps
+☐ Cliente conecta a um dos servidores
+
+═══════════════════════════════════════════════════════════════════════════════
+🎯 RESUMO RÁPIDO - COMANDO POR COMANDO
+═══════════════════════════════════════════════════════════════════════════════
+
+# 1. Compilar projeto
+mvn clean compile assembly:single docker:build
+
+# 2. Criar rede Docker
+docker network create -d bridge sdnet
+
+# 3. Testar Discovery (3 terminais diferentes)
+docker run --rm -h disc1 --name disc1 --network sdnet sd2526-lab1-xxxxx-yyyyy
+docker run --rm -h disc2 --name disc2 --network sdnet sd2526-lab1-xxxxx-yyyyy
+docker run --rm -h disc3 --name disc3 --network sdnet sd2526-lab1-xxxxx-yyyyy
+
+# 4. Testar TcpServer + TcpClient (2 terminais)
+docker run -it --rm -h srv --name srv --network sdnet sd2526-lab1-xxxxx-yyyyy java -cp /home/sd/sd.jar sd.lab1.TcpServer
+docker run -it --rm -h cli --name cli --network sdnet sd2526-lab1-xxxxx-yyyyy java -cp /home/sd/sd.jar sd.lab1.TcpClient
+
+# 5. Limpar tudo
+docker kill $(docker ps -q)
+docker network rm sdnet
+
+═══════════════════════════════════════════════════════════════════════════════
+📝 NOTAS IMPORTANTES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. TIMESTAMPS:
+   • São guardados mas NÃO são usados para filtrar automaticamente
+   • Serviços offline permanecem no registry com timestamp antigo
+   • Responsabilidade do programador verificar se timestamp é recente
+
+2. MULTICAST:
+   • Endereço: 226.226.226.226:2266
+   • Anúncios a cada 1 segundo
+   • Funciona apenas na mesma rede Docker (ou mesma LAN)
+
+3. VERSÃO IMPLEMENTADA:
+   • Versão MÍNIMA conforme pedido no PDF
+   • SEM cleanup automático de serviços expirados
+   • SEM filtro automático em knownUrisOf()
+
+4. DOCKER:
+   • Use --rm para remover container ao sair
+   • Use -it para modo interativo (TcpClient precisa)
+   • Use --network sdnet para comunicação entre containers
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Documento criado em: 2026-04-01
+Versão: 1.0 (Versão Mínima)
+Autor: GitHub Copilot
+
+═══════════════════════════════════════════════════════════════════════════════

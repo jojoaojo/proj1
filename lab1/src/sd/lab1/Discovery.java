@@ -12,9 +12,6 @@ import java.net.UnknownHostException;
 import java.util.logging.Logger;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.stream.Collectors; // MUDEI ISTO: adicionei import para filtrar serviços expirados
 
 /**
  * <p>
@@ -51,9 +48,6 @@ public class Discovery {
 	static final int DISCOVERY_ANNOUNCE_PERIOD = 1000;
 	static final int DISCOVERY_RETRY_TIMEOUT = 5000;
 	static final int MAX_DATAGRAM_SIZE = 65536;
-	
-	// MUDEI ISTO: adicionei timeout para expirar serviços que não anunciam há 5 segundos (conforme sugestão do PDF página 47)
-	static final int SERVICE_EXPIRATION_TIMEOUT = 5000; // 5 segundos sem anúncio = serviço considerado offline
 
 	// Used separate the two fields that make up a service announcement.
 	private static final String DELIMITER = "\t";
@@ -166,45 +160,6 @@ public class Discovery {
 				}
 			}
 		}).start();
-		
-		// MUDEI ISTO: adicionei thread de limpeza para remover serviços expirados (não anunciam há > 5 segundos)
-		new Thread(() -> {
-			for (;;) {
-				try {
-					Thread.sleep(SERVICE_EXPIRATION_TIMEOUT); // verifica a cada 5 segundos
-					cleanupExpiredServices();
-				} catch (InterruptedException e) {
-					Thread.currentThread().interrupt();
-					break;
-				}
-			}
-		}).start();
-	}
-	
-	/**
-	 * MUDEI ISTO: método novo para remover serviços que não anunciam há mais de SERVICE_EXPIRATION_TIMEOUT
-	 * Conforme sugestão do PDF página 47: "store the time of received announcement to know which servers are currently reachable"
-	 */
-	private void cleanupExpiredServices() {
-		long currentTime = System.currentTimeMillis();
-		
-		serviceRegistry.forEach((serviceName, uriMap) -> {
-			// Remove URIs cujo último anúncio foi há mais de SERVICE_EXPIRATION_TIMEOUT
-			uriMap.entrySet().removeIf(entry -> {
-				long lastSeen = entry.getValue();
-				boolean isExpired = (currentTime - lastSeen) > SERVICE_EXPIRATION_TIMEOUT;
-				
-				if (isExpired) {
-					Log.info(String.format("Removing expired service: %s -> %s (last seen %d ms ago)", 
-						serviceName, entry.getKey(), currentTime - lastSeen));
-				}
-				
-				return isExpired;
-			});
-		});
-		
-		// Remove entradas de serviços que ficaram sem URIs
-		serviceRegistry.entrySet().removeIf(entry -> entry.getValue().isEmpty());
 	}
 
 	/**
@@ -222,32 +177,26 @@ public class Discovery {
 		
 		long startTime = System.currentTimeMillis();
 		
-		// MUDEI ISTO: bloqueia até ter minReplies URIs válidos (não expirados) ou timeout
+		// MUDEI ISTO: bloqueia até ter minReplies URIs ou timeout
 		while (true) {
 			Map<URI, Long> uriMap = serviceRegistry.get(serviceName);
 			
-			// MUDEI ISTO: filtra apenas URIs não expirados (anunciados nos últimos 5 segundos)
-			Set<URI> activeUris = null;
-			if (uriMap != null) {
-				long currentTime = System.currentTimeMillis();
-				activeUris = uriMap.entrySet().stream()
-					.filter(entry -> (currentTime - entry.getValue()) <= SERVICE_EXPIRATION_TIMEOUT)
-					.map(Map.Entry::getKey)
-					.collect(Collectors.toSet());
-			}
-			
-			if (activeUris != null && activeUris.size() >= minReplies) {
-				Log.info(String.format("Found %d instances of service '%s'", activeUris.size(), serviceName));
-				return activeUris.toArray(new URI[0]);
+			// MUDEI ISTO: retorna TODOS os URIs registados (mesmo com timestamps antigos)
+			// É responsabilidade do programador verificar se os timestamps são recentes
+			if (uriMap != null && uriMap.size() >= minReplies) {
+				URI[] uris = uriMap.keySet().toArray(new URI[0]);
+				Log.info(String.format("Found %d instances of service '%s'", uris.length, serviceName));
+				return uris;
 			}
 			
 			// MUDEI ISTO: verifica timeout de 5 segundos
 			long elapsed = System.currentTimeMillis() - startTime;
 			if (elapsed > DISCOVERY_RETRY_TIMEOUT) {
+				int found = (uriMap != null) ? uriMap.size() : 0;
 				Log.warning(String.format("Timeout waiting for service '%s' (found %d, needed %d)", 
-					serviceName, activeUris != null ? activeUris.size() : 0, minReplies));
+					serviceName, found, minReplies));
 				// Retorna o que tem, mesmo se for menos que minReplies
-				return activeUris != null ? activeUris.toArray(new URI[0]) : new URI[0];
+				return (uriMap != null) ? uriMap.keySet().toArray(new URI[0]) : new URI[0];
 			}
 			
 			// MUDEI ISTO: sleep curto antes de verificar novamente (polling a cada 100ms)

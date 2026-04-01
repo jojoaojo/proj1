@@ -1,0 +1,131 @@
+╔═══════════════════════════════════════════════════════════════════════╗
+║                                                                       ║
+║          ✅ VERSÃO SIMPLIFICADA PARA VERSÃO MÍNIMA                   ║
+║                                                                       ║
+╚═══════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════
+📝 O QUE FOI REMOVIDO:
+═══════════════════════════════════════════════════════════════════════
+
+❌ REMOVIDO: import java.util.stream.Collectors
+❌ REMOVIDO: import java.util.Set
+❌ REMOVIDO: import java.util.concurrent.CopyOnWriteArraySet
+❌ REMOVIDO: Constante SERVICE_EXPIRATION_TIMEOUT
+❌ REMOVIDO: Thread de cleanup automático (~15 linhas)
+❌ REMOVIDO: Método cleanupExpiredServices() (~25 linhas)
+❌ REMOVIDO: Filtro de URIs expirados em knownUrisOf()
+
+Total removido: ~50 linhas de código
+
+═══════════════════════════════════════════════════════════════════════
+✅ O QUE FICOU (Conforme pedido no PDF):
+═══════════════════════════════════════════════════════════════════════
+
+✅ MANTIDO: Map<String, Map<URI, Long>> serviceRegistry
+   └─ Guarda URIs com timestamps
+
+✅ MANTIDO: Gravação de timestamps ao receber anúncios
+   └─ serviceRegistry.put(uri, System.currentTimeMillis())
+
+✅ MANTIDO: Log com timestamp
+   └─ "Registered service: ... (timestamp: 1234567890)"
+
+✅ MANTIDO: knownUrisOf() retorna TODOS os URIs
+   └─ Não filtra por timestamp (responsabilidade do programador)
+
+✅ MANTIDO: Integração TcpServer (auto-anúncio)
+✅ MANTIDO: Integração TcpClient (descoberta automática)
+✅ MANTIDO: Todos os comentários explicativos
+
+═══════════════════════════════════════════════════════════════════════
+🎯 COMPORTAMENTO DA VERSÃO MÍNIMA:
+═══════════════════════════════════════════════════════════════════════
+
+📊 Quando servidor anuncia:
+   1. Recebe anúncio "TcpServer\ttcp://192.168.1.5:9000"
+   2. Grava URI com timestamp atual
+   3. Log: "Registered service: TcpServer -> tcp://... (timestamp: ...)"
+
+📊 Quando servidor crashou:
+   • Servidor PARA de anunciar
+   • URI fica no registry COM timestamp antigo
+   • Nunca é removido automaticamente
+   • ℹ️  Programador pode ver timestamp e decidir
+
+�� Quando cliente consulta:
+   • knownUrisOf("TcpServer", 1) retorna TODOS os URIs
+   • Incluindo servidores offline (com timestamps antigos)
+   • Cliente recebe array de URIs
+   • ℹ️  Cliente deve verificar se quer usar URIs antigos
+
+═══════════════════════════════════════════════════════════════════════
+📋 CUMPRE OS REQUISITOS DO PDF (Página 47):
+═══════════════════════════════════════════════════════════════════════
+
+✅ "Complete the code to record information about running services"
+   → serviceRegistry guarda informação de todos os serviços
+
+✅ "Suggestion: store the time of received announcement"
+   → Timestamps guardados em Map<URI, Long>
+
+✅ "to know which servers are currently reachable"
+   → Timestamps permitem SABER (não remove automaticamente)
+   → Deixa a decisão ao programador
+
+✅ "Modify the TcpServer and TcpClient to use the Discovery"
+   → TcpServer anuncia-se automaticamente
+   → TcpClient descobre servidores automaticamente
+
+═══════════════════════════════════════════════════════════════════════
+💡 EXEMPLO DE USO (Como programador pode usar timestamps):
+═══════════════════════════════════════════════════════════════════════
+
+// No cliente, podes fazer algo assim (se quiseres):
+URI[] allServers = discovery.knownUrisOf(\"TcpServer\", 1);
+
+for (URI server : allServers) {
+    // Podes aceder ao registry para ver o timestamp (se quiseres)
+    // e decidir se é recente o suficiente
+    // (Mas isto NÃO está implementado - é só um exemplo)
+}
+
+Ou simplesmente:
+URI[] servers = discovery.knownUrisOf(\"TcpServer\", 1);
+// Usa o primeiro que aparecer
+connectTo(servers[0]);
+
+═══════════════════════════════════════════════════════════════════════
+✅ COMPILAÇÃO E TESTES:
+═══════════════════════════════════════════════════════════════════════
+
+✅ mvn clean compile  → SUCCESS
+✅ mvn package        → SUCCESS
+✅ JAR criado:          target/sd2526-lab1-1.0.jar
+
+═══════════════════════════════════════════════════════════════════════
+📊 DIFERENÇA EM NÚMEROS:
+═══════════════════════════════════════════════════════════════════════
+
+                      Versão Completa  →  Versão Mínima
+────────────────────────────────────────────────────────────────────
+Linhas de código:     ~230 linhas      →  ~180 linhas (-50)
+Imports:              15 imports       →  12 imports (-3)
+Threads:              3 threads        →  2 threads (-1)
+Métodos:              5 métodos        →  4 métodos (-1)
+Constantes:           6 constantes     →  5 constantes (-1)
+Complexidade:         Média            →  Baixa
+
+═══════════════════════════════════════════════════════════════════════
+
+🎓 RESUMO:
+
+Agora tens a versão MÍNIMA que:
+• ✅ Cumpre EXACTAMENTE o pedido do professor
+• ✅ Guarda timestamps (conforme sugestão)
+• ✅ NÃO adiciona funcionalidades extra
+• ✅ Deixa controlo ao programador
+• ✅ Mais simples de entender e explicar
+• ✅ ~50 linhas de código a menos
+
+═══════════════════════════════════════════════════════════════════════

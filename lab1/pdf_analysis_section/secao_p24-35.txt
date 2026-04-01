@@ -1,0 +1,209 @@
+
+────────────────────────────────────────────────────────────
+PÁGINA 24
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   24
+HOW TO PERFORM SERVICE DISCOVERY?
+How does a client discover a server?
+How does a server discover other servers?
+GatService
+MessageService
+UserService
+???
+???
+
+[!] 2 imagem(ns) nesta página
+   → page024_img1.png
+   → page024_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 25
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   25
+HOW TO PERFORM SERVICE DISCOVERY?
+One solution is to know the URL of the service
+TimeWebService
+ChatWebService
+FileServerWebService
+
+[!] 2 imagem(ns) nesta página
+   → page025_img1.png
+   → page025_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 26
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   26
+HOW TO PERFORM SERVICE DISCOVERY?
+An alternative solution is to use IP Multicast
+(There are two flavors)
+TimeWebService
+ChatWebService
+FileServerWebService
+
+[!] 2 imagem(ns) nesta página
+   → page026_img1.png
+   → page026_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 27
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   27
+HOW TO PERFORM SERVICE DISCOVERY?
+An alternative solution is to use IP Multicast
+1st Alternative: Server Initiated
+TimeWebService
+ChatWebService
+FileServerWebService
+
+[!] 2 imagem(ns) nesta página
+   → page027_img1.png
+   → page027_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 28
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   28
+HOW TO PERFORM SERVICE DISCOVERY?
+An alternative solution is to use IP Multicast
+1st Alternative: Server Initiated
+TimeWebService
+ChatWebService
+ChatWebService 
+URL-CWS
+FileServerWebService
+
+[!] 2 imagem(ns) nesta página
+   → page028_img1.png
+   → page028_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 29
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   29
+HOW TO PERFORM SERVICE DISCOVERY?
+An alternative solution is to use IP Multicast
+1st Alternative: Server Initiated
+TimeWebService
+ChatWebService
+FileServerWebService 
+URL-FSWS
+FileServerWebService
+
+[!] 2 imagem(ns) nesta página
+   → page029_img1.png
+   → page029_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 30
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   30
+HOW TO PERFORM SERVICE DISCOVERY?
+An alternative solution is to use IP Multicast
+1st Alternative: Server Initiated
+TimeWebService
+ChatWebService
+TimeWebService 
+URL-TWS
+FileServerWebService
+
+[!] 2 imagem(ns) nesta página
+   → page030_img1.png
+   → page030_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 31
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   31
+HOW TO PERFORM SERVICE DISCOVERY?
+An alternative solution is to use IP Multicast
+1st Alternative: Server Initiated
+TimeWebService
+ChatWebService
+FileServerWebService
+Use: URL-FSWS
+
+[!] 2 imagem(ns) nesta página
+   → page031_img1.png
+   → page031_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 32
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   32
+HOW TO PERFORM SERVICE DISCOVERY?
+An alternative solution is to use IP Multicast
+2nd Alternative: Client Initiated
+TimeWebService
+ChatWebService
+FileServerWebService
+
+[!] 2 imagem(ns) nesta página
+   → page032_img1.png
+   → page032_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 33
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   33
+HOW TO PERFORM SERVICE DISCOVERY?
+An alternative solution is to use IP Multicast
+2nd Alternative: Client Initiated
+TimeWebService
+ChatWebService
+FileServerWebService
+Who has the 
+FileServerWebService?
+
+[!] 2 imagem(ns) nesta página
+   → page033_img1.png
+   → page033_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 34
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   34
+HOW TO PERFORM SERVICE DISCOVERY?
+An alternative solution is to use IP Multicast
+2nd Alternative: Client Initiated
+TimeWebService
+ChatWebService
+FileServerWebService
+FileServerWebService 
+URL-FSWS
+
+[!] 2 imagem(ns) nesta página
+   → page034_img1.png
+   → page034_img2.png
+
+────────────────────────────────────────────────────────────
+PÁGINA 35
+────────────────────────────────────────────────────────────
+
+Distributed Systems 25/26 – DI/FCT/NOVA  /   35
+HOW TO PERFORM SERVICE DISCOVERY?
+An alternative solution is to use IP Multicast
+2nd Alternative: Client Initiated
+TimeWebService
+ChatWebService
+FileServerWebService
+Use: URL-FSWS
+We will be using the first 
+alternative, where 
+servers announce their 
+service and URL 
+
+[!] 2 imagem(ns) nesta página
+   → page035_img1.png
+   → page035_img2.png
